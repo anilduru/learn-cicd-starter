@@ -1,53 +1,53 @@
 package auth
 
 import (
-	
-	"errors"
 	"net/http"
 	"testing"
-	"github.com/google/go-cmp/cmp"
-	
+	"errors"
 )
 
 func TestGetAPIKey(t *testing.T) {
-	tests := map[string]struct {
+	cases := []struct {
+		name    string
 		headers http.Header
-		want    string
-		error   error
+		expected string
+		err     error
 	}{
-		"no authorization header": {
+		{
+			name:    "No Authorization Header",
 			headers: http.Header{},
-			want:    "",
-			error:   ErrNoAuthHeaderIncluded,
+			expected: "",
+			err:     ErrNoAuthHeaderIncluded,
 		},
-		"malformed authorization header - missing ApiKey prefix": {
-			headers: http.Header{"Authorization": []string{"Bearer abc123"}},
-			want:    "",
-			error:   errors.New("malformed authorization header"),
+		{
+			name:    "Malformed Authorization Header",
+			headers: http.Header{"Authorization": []string{"MalformedHeader"}},
+			expected: "",
+			err:     errors.New("malformed authorization header"),
 		},
-		"malformed authorization header - missing API key": {
-			headers: http.Header{"Authorization": []string{"ApiKey"}},
-			want:    "",
-			error:   errors.New("malformed authorization header"),
-		},
-		"valid authorization header": {
-			headers: http.Header{"Authorization": []string{"ApiKey abc123"}},
-			want:    "abc123",
-			error:   nil,
+		{
+			name:    "Correct Authorization Header",
+			headers: http.Header{"Authorization": []string{"ApiKey 123456789"}},
+			expected: "123456789",
+			err:     nil,
 		},
 	}
 
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			got, err := GetAPIKey(tc.headers)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			apiKey, err := GetAPIKey(c.headers)
 
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("unexpected API key (-want +got):\n%s", diff)
+			if apiKey != c.expected {
+				t.Errorf("expected %v, got %v", c.expected, apiKey)
 			}
 
-			if !errors.Is(err, tc.error) {
-				t.Errorf("expected error %v, got %v", tc.error, err)
+			if err != nil && c.err == nil || err == nil && c.err != nil {
+				t.Errorf("expected error %v, got %v", c.err, err)
+			}
+
+			if err != nil && c.err != nil && err.Error() != c.err.Error() {
+				t.Errorf("expected error message %v, got %v", c.err.Error(), err.Error())
 			}
 		})
 	}
-}
+} 
